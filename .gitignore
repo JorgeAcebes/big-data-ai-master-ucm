@@ -1,0 +1,39 @@
+# Entornos virtuales locales
+.venv/
+venv/
+env/
+conda-env/
+
+# Cachés y compilados de Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Datos en cualquier profundidad
+**/data/
+*.csv
+*.tsv
+*.parquet
+*.h5
+*.hdf5
+*.pkl
+*.npy
+*.npz
+
+# Modelos y pesos pesados
+*.pt
+*.pth
+*.onnx
+*.bin
+
+# Variables de entorno y credenciales
+.env
+*.env
+credentials.json
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
