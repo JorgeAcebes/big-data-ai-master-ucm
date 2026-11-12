@@ -1,0 +1,278 @@
+-- ====================================
+--          EJEMPLOS DE CLASE
+-- ====================================
+
+-- Nota: estoy usando tabulaciones en algunos casos pero NO es necesario
+
+USE ROLE ACCOUNTADMIN;
+USE WAREHOUSE COMPUTE_WH;
+
+USE DATABASE MASTER;
+USE SCHEMA ONU;
+
+
+
+DESCRIBE TABLE HUMAN_DEVELOPMENTS;
+
+-- SELECT y FROM
+
+-- Vamos a obtener el ID, el año, el género y el HID de la tabla HUMAN_DEVELOPMENTS
+
+SELECT COUNTRY_ID, YEAR, GENDER, HUMAN_DEVELOPMENT_INDEX 
+FROM HUMAN_DEVELOPMENTS;
+
+
+-- Vamos a hacer lo mismo, pero vamos a llamarles con alias, para que sea más sencillo de leer
+
+
+SELECT 
+    COUNTRY_ID AS "ID País",
+    YEAR AS "Año",
+    GENDER AS "Género",
+    HUMAN_DEVELOPMENT_INDEX AS HDI
+FROM HUMAN_DEVELOPMENTS;
+
+
+SELECT DISTINCT COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS;
+
+
+-- Operadores de Comparación y Lógicos: 
+
+
+-- Todo lo de España
+SELECT *
+FROM COUNTRY_POPULATIONS
+WHERE COUNTRY_ID = 'ESP';
+
+-- Todo lo del Siglo XXI salvo España
+SELECT * FROM COUNTRY_POPULATIONS
+WHERE 
+    YEAR > 2000 AND
+    COUNTRY_ID != 'ESP'; 
+
+
+-- HDI y Año para hombres franceses
+
+SELECT HUMAN_DEVELOPMENT_INDEX, YEAR, GENDER, COUNTRY_ID FROM HUMAN_DEVELOPMENTS
+WHERE 
+    GENDER = 'Male' AND
+    COUNTRY_ID = 'FRA'
+;
+
+
+-- HDI y Año para hombres franceses y mujeres italianas post 2020
+
+SELECT HUMAN_DEVELOPMENT_INDEX, YEAR, GENDER, COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS
+WHERE 
+    YEAR > 2020 AND ((GENDER = 'Male' and COUNTRY_ID = 'FRA') OR (GENDER = 'Female' and COUNTRY_ID = 'ITA'))
+;
+
+
+-- HDI y Country para países que empiecen por S y cuyo HDI no sea nulo:
+
+SELECT HUMAN_DEVELOPMENT_INDEX, COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS
+WHERE COUNTRY_ID LIKE 'S%' AND HUMAN_DEVELOPMENT_INDEX IS NOT NULL;
+
+
+
+-- Uso el guion
+SELECT * FROM HUMAN_DEVELOPMENTS
+WHERE YEAR LIKE '__2_' AND COUNTRY_ID = 'ITA' AND YEAR NOT LIKE '%1';
+
+
+
+-- Operador IN
+-- Datos de Escolarización por año de los países del G7
+
+
+SELECT DISTINCT COUNTRY_ID FROM HUMAN_DEVELOPMENTS;
+
+SELECT MEAN_YEARS_OF_SCHOOLING, EXPECTED_YEARS_OF_SCHOOLING, YEAR, COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS
+WHERE COUNTRY_ID IN  ('CAN', 'USA', 'JPN', 'GBR', 'FRA', 'DEU', 'ITA');
+
+
+-- Operador BETWEEN
+
+SELECT GROSS_NATIONAL_INCOME_PER_CAPITA, YEAR, COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS
+WHERE YEAR BETWEEN 2001 AND 2010;
+
+
+-- NULL
+
+-- Mostrar ID, Año y Población de los años de valores nuos
+
+DESCRIBE TABLE COUNTRY_POPULATIONS; 
+
+SELECT COUNTRY_ID, YEAR, POPULATION
+FROM COUNTRY_POPULATIONS
+WHERE POPULATION IS NULL; 
+
+-- IFNULL
+SELECT COUNTRY_ID, IFNULL(HUMAN_DEVELOPMENT_INDEX, 0) AS HDI_filter, YEAR
+FROM HUMAN_DEVELOPMENTS
+ORDER BY HDI_filter ASC;
+
+
+-- ORDER BY
+
+-- Voy a ordenar el Human Development Index en función del RPC
+
+SELECT HUMAN_DEVELOPMENT_INDEX, GROSS_NATIONAL_INCOME_PER_CAPITA, YEAR, COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS
+WHERE HUMAN_DEVELOPMENT_INDEX IS NOT NULL
+ORDER BY GROSS_NATIONAL_INCOME_PER_CAPITA DESC;
+
+
+-- Ordenamos en ORDEN CRONOLÓGICO
+SELECT * FROM HUMAN_DEVELOPMENTS
+ORDER BY YEAR ASC; -- Podría omitir lo de orden ascendente, es el default.
+
+
+
+
+-- Los datos de renta PER CAPITA en la década de los 90 ordenados por país (alfabético), año más actual y RCP desc.
+
+SELECT GROSS_NATIONAL_INCOME_PER_CAPITA, GENDER,  YEAR, COUNTRY_ID
+FROM HUMAN_DEVELOPMENTS
+WHERE YEAR BETWEEN 1991 AND 2000
+ORDER BY 
+    COUNTRY_ID ASC, 
+    YEAR DESC,
+    GROSS_NATIONAL_INCOME_PER_CAPITA DESC;
+
+
+
+
+-- Subconsultas
+
+-- Mostrar ID, Género y HDI en 2020 para los países de más de 800M de habitantes.
+
+WITH PAISES_POBLADOS AS (
+                SELECT COUNTRY_ID
+                FROM COUNTRY_POPULATIONS
+                WHERE POPULATION > 800000000)
+SELECT COUNTRY_ID, GENDER, HUMAN_DEVELOPMENT_INDEX
+FROM HUMAN_DEVELOPMENTS
+WHERE YEAR = 2000 AND 
+    COUNTRY_ID IN (SELECT COUNTRY_ID FROM PAISES_POBLADOS);
+
+
+-- Si creo que voy a utilizar la "Query 1" MÁS veces en mi script, se recomiendan las Vistas temporales
+
+-- 1. Creo la vista una sola vez
+CREATE VIEW PAISES_POBLADOS AS
+SELECT COUNTRY_ID
+FROM COUNTRY_POPULATIONS
+WHERE POPULATION > 800000000;
+
+-- 2. La uso cuando quiera
+SELECT COUNTRY_ID, GENDER, HUMAN_DEVELOPMENT_INDEX
+FROM HUMAN_DEVELOPMENTS
+WHERE YEAR = 2000 
+  AND COUNTRY_ID IN (SELECT COUNTRY_ID FROM PAISES_POBLADOS);
+
+
+-- Promedio HDI, desv típica y mediana; Sumatorio RPC, MÁX esperanza de vida, mín años escolarización y conteo filas
+
+SELECT
+    AVG(HUMAN_DEVELOPMENT_INDEX)            AS "Mean HDI", 
+    STDDEV(HUMAN_DEVELOPMENT_INDEX)         AS "Std HDI",
+    MEDIAN(HUMAN_DEVELOPMENT_INDEX)         AS "Median HDI", 
+    SUM(GROSS_NATIONAL_INCOME_PER_CAPITA)   AS "Sumatorio RPC", 
+    MAX(LIFE_EXPECTANCY_AT_BIRTH)           AS "Max Life Expectancy",
+    MIN(MEAN_YEARS_OF_SCHOOLING)            AS "Min Mean Years of Schooling",
+    COUNT(*)                                AS "Conteo filas"
+FROM HUMAN_DEVELOPMENTS;
+
+
+SELECT COUNTRY_ID, LIFE_EXPECTANCY_AT_BIRTH, YEAR
+FROM HUMAN_DEVELOPMENTS
+WHERE LIFE_EXPECTANCY_AT_BIRTH = (
+    SELECT MAX(LIFE_EXPECTANCY_AT_BIRTH)
+    FROM HUMAN_DEVELOPMENTS
+    );
+
+
+-- Media del HDI para la década de los 90 para cada país
+
+SELECT
+    COUNTRY_ID AS "País",
+    ROUND(AVG(HUMAN_DEVELOPMENT_INDEX),2) AS "Mean HDI 90s"
+FROM HUMAN_DEVELOPMENTS
+WHERE 
+    YEAR BETWEEN 1991 AND 2000
+    AND HUMAN_DEVELOPMENT_INDEX IS NOT NULL
+GROUP BY COUNTRY_ID;
+
+
+-- Media del HDI por País y Género en el año 2000
+
+SELECT 
+    AVG(HUMAN_DEVELOPMENT_INDEX) AS "Mean HDI",
+    COUNTRY_ID, 
+    GENDER
+FROM HUMAN_DEVELOPMENTS
+WHERE YEAR = 2000
+GROUP BY 
+    COUNTRY_ID,
+    GENDER;
+
+
+-- Promedio del RPC por género y país
+SELECT 
+    COUNTRY_ID,
+    AVG(GROSS_NATIONAL_INCOME_PER_CAPITA) AS "RPC Promedio", 
+    GENDER
+FROM HUMAN_DEVELOPMENTS
+GROUP BY 
+    GENDER, 
+    COUNTRY_ID
+ORDER BY GENDER;
+
+
+
+-- FUNCIONES 
+
+-- Escalares de texto
+
+SELECT 
+    COUNTRY,
+    UPPER(COUNTRY) AS "Country Upper",
+    LOWER(COUNTRY) AS "Country Lower"
+FROM COUNTRIES;
+
+-- Numéricas
+
+
+SELECT 
+    HUMAN_DEVELOPMENT_INDEX AS "HDI",
+    ROUND(SQRT(HUMAN_DEVELOPMENT_INDEX),2) AS "Raíz de HDI",
+    ROUND(POWER(HUMAN_DEVELOPMENT_INDEX, 1/2),2) AS "Raíz de HDI mediante Power",
+    POWER(LIFE_EXPECTANCY_AT_BIRTH, 3) AS "Población al cubo"
+FROM HUMAN_DEVELOPMENTS;
+
+
+CREATE OR REPLACE VIEW NegativePopulation AS
+    SELECT 
+        POPULATION * (-1) AS NEGATIVE_POPULATION -- ¡Importante! Tengo que poner un alias a la columna que modifico. 
+    FROM COUNTRY_POPULATIONS;
+
+
+SELECT ABS(NEGATIVE_POPULATION)
+FROM NEGATIVEPOPULATION;
+
+
+
+SELECT 
+    PAID_LEAVE_Days + PAID_PUBLIC_HOLIDAYS AS Total_Days_Off,
+    COUNTRY_ID,
+FROM PAID_DAYS_OFF
+ORDER BY Total_Days_Off;
+
+
+
